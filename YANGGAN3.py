@@ -222,15 +222,16 @@ Path1 = r'D:\GoogleDownload\val_large\cover'
 Path2 = r'D:\GoogleDownload\BOSSbase_1.01\test\original'
 
 BATCHSIZE = 5
-isTrain = False
+isTrain = True
 epoches = 92
 
 input_image = tf.placeholder(dtype=tf.float32, shape=[None, 512, 512, 1])
 isTraining = tf.placeholder(dtype=tf.bool)
 probab_map = generate(input_image, isTraining)
 modifi_map = Tanh(probab_map, BATCHSIZE)
-modifi_map=tf.round(modifi_map)
-stego_image = tf.clip_by_value(input_image + modifi_map,0,255)
+#modifi_map=tf.round(modifi_map)
+#stego_image = tf.clip_by_value(input_image + modifi_map,0,255)
+stego_image = input_image + modifi_map
 if isTrain:
 
     x = tf.concat([input_image, stego_image], 0)
