@@ -4,3 +4,6 @@
 Path1是训练集目录
 Path2为测试集目录
 isTrain 是否为训练
+generate 生成器
+discrimation 判别器
+Tanh 嵌入模拟器
