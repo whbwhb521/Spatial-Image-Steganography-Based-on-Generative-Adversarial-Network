@@ -18,13 +18,13 @@ def deconv2d(x, W, output_shape, strides=2, padding='SAME', name=None):
     return tf.nn.conv2d_transpose(x, W, output_shape=output_shape, strides=[1, strides, strides, 1], padding=padding,
                                   name=name)
 
-
+# leakrelu激活函数
 def leakrelu(x, leak):
     f1 = 0.5 * (1 + leak)
     f2 = 0.5 * (1 - leak)
     return f1 * x + f2 * abs(x)
 
-
+# 生成器 为U-net，输出为probability Map
 def generate(input, isTrain):
     with tf.variable_scope('gen') as scope:
         x_image = tf.reshape(input, [-1, 512, 512, 1])
@@ -120,7 +120,7 @@ def generate(input, isTrain):
 
         return RL_17
 
-
+# Tanh嵌入模拟器
 def Tanh(input, BATCHSIZE):
     with tf.variable_scope('tanh') as scope:
         lemda = 1000
@@ -128,10 +128,11 @@ def Tanh(input, BATCHSIZE):
         M = -0.5 * tf.nn.tanh(lemda * (input - 2 * N)) + 0.5 * tf.nn.tanh(lemda * (input - 2 * (1 - N)))
         return M
 
-
+# 判别器
 def discrimation(input, prob, isTrain):
     x_image = tf.reshape(input, [-1, 512, 512, 1])
     #prob_image=tf.reshape(prob,[-1,512,512,1])
+    # hpf为10个高通分量
     hpf = np.zeros([5, 5, 1, 10], dtype=np.float32)  # [height,width,input,output]
     hpf[:, :, 0, 0] = np.array(
         [[-1, 2, -2, 2, -1], [2, -6, 8, -6, 2], [-2, 8, -12, 8, -2], [2, -6, 8, -6, 2], [-1, 2, -2, 2, -1]],
@@ -199,7 +200,7 @@ def discrimation(input, prob, isTrain):
         y_ = tf.matmul(h_pool5_flat, weights) + bias
         return y_
 
-
+# 图片混乱
 def read_image_shufft(PATH):
     original_pic = []
     for i in os.listdir(PATH):
@@ -208,7 +209,7 @@ def read_image_shufft(PATH):
     random.shuffle(original_pic)
     return original_pic
 
-
+# 读取图片和图片名
 def read_image(PATH):
     original_pic = []
     name=[]
@@ -221,6 +222,7 @@ def read_image(PATH):
 Path1 = r'D:\GoogleDownload\val_large\cover'
 Path2 = r'D:\GoogleDownload\BOSSbase_1.01\test\original'
 
+# BATCH:批量大小   isTrain：是否为训练阶段  epoches：总批量
 BATCHSIZE = 5
 isTrain = True
 epoches = 92
@@ -273,6 +275,7 @@ if isTrain:
         writer = tf.summary.FileWriter('./my_graph/1', sess.graph)
         summary_op = tf.summary.merge_all()
 
+        # 训练
         for epoch in range(epoches):
             for i in range(int(len(image_train_road) / BATCHSIZE)):
                 for j in range(BATCHSIZE):
@@ -288,9 +291,11 @@ if isTrain:
                 if i % 10 == 0:
                     writer.add_summary(summary_op_p, epoch * int(len(image_train_road) / BATCHSIZE) + i)
 
+            # 保存参数，每10个epoch保存一次
             if epoch % 10 == 1:
                 saver.save(sess, './myModel/ASDLmodel' + str(epoch) + '.cptk')
 
+            # 验证
             rand = np.random.randint(low=0, high=int(len(image_test_road) / BATCHSIZE))
             for j in range(BATCHSIZE):
                 imc = ndimage.imread(image_test_road[rand * BATCHSIZE + j])
@@ -304,20 +309,23 @@ if isTrain:
             modifi_map_p = np.reshape(modifi_map_p, newshape=[-1, 512, 512])
             modifi_map_p = np.asarray(abs(modifi_map_p))
 
-            for k in range(BATCHSIZE):
-                scipy.misc.toimage(probab_map_p[k]).save(
-                    'probab' + str(epoch) + '_' + str(k) + '_' + str(rand) + '.png')
-                scipy.misc.toimage(modifi_map_p[k]).save(
-                    'modifi' + str(epoch) + '_' + str(k) + '_' + str(rand) + '.png')
+            # 训练过程中生成的probabilityMap 和modification Map，需要查看的话，解除注释再训练
+            #for k in range(BATCHSIZE):
+            #    scipy.misc.toimage(probab_map_p[k]).save(
+            #        'probab' + str(epoch) + '_' + str(k) + '_' + str(rand) + '.png')
+            #    scipy.misc.toimage(modifi_map_p[k]).save(
+            #        'modifi' + str(epoch) + '_' + str(k) + '_' + str(rand) + '.png')
 
 else:
     image_test_road,image_test_name = read_image(Path2)
     sess = tf.Session()
     saver = tf.train.Saver()
     ckpt = tf.train.latest_checkpoint('mymodel')
+    # 载入训练出来中的参数
     saver.restore(sess, ckpt)
-
     data_x = np.zeros([BATCHSIZE, 512, 512, 1])
+    
+    # 测试
     for i in range(int(len(image_test_road) / BATCHSIZE)):
         for j in range(BATCHSIZE):
             imc = ndimage.imread(image_test_road[i * BATCHSIZE + j])
@@ -325,7 +333,8 @@ else:
 
         probab_map_p, modifi_map_p, stego_image_p = sess.run(
             [probab_map, modifi_map, stego_image], feed_dict={input_image: data_x, isTraining: False})
-
+        
+        # 测试过程中产生的probabilityMap 和 Modification Map，需要可以解除注释
         #probab_map_p = np.asarray(probab_map_p)
         #probab_map_p = np.reshape(probab_map_p, newshape=[-1, 512, 512])
         #modifi_map_p = np.reshape(modifi_map_p, newshape=[-1, 512, 512])
@@ -333,6 +342,7 @@ else:
         stego_image_p = np.asarray(stego_image_p)
         stego_image_p = np.reshape(stego_image_p, newshape=[-1, 512, 512])
 
+        # 测试过程中产生的probabilityMap 和 Modification Map，需要可以解除注释
         for k in range(BATCHSIZE):
             #scipy.misc.toimage(probab_map_p[k]).save(
             #    'probab_' + str(i * 5 + 9000 + k) + '.png')
